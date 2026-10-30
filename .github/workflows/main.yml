@@ -1,0 +1,44 @@
+name: Build iOS App Bundle
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Set up Web Directory Structures
+      run: |
+        mkdir -p www
+        cp index.html www/
+        [ -f Manifest.json ] && cp Manifest.json www/ || echo "No manifest"
+        [ -f Sw.js ] && cp Sw.js www/ || echo "No service worker"
+
+    - name: Setup Capacitor System
+      run: |
+        npm init -y
+        npm install @capacitor/core @capacitor/cli @capacitor/ios
+        npx cap init "CoilTracker" "com.coiltracker.app" --web-dir="www"
+        npx cap add ios
+
+    - name: Compile App Binary
+      run: |
+        cd ios/App
+        xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO clean build
+
+    - name: Upload iOS Build Product
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-app-package
+        path: ios/App/build/Release-iphoneos/App.app
