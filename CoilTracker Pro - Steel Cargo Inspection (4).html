@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CoilTracker Pro - Maritime Cargo Inspection</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            950: '#090d16',
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                        },
+                        gold: {
+                            300: '#fde047',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                        }
+                    },
+                    boxShadow: {
+                        'gold-glow': '0 0 20px rgba(245, 158, 11, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html5-qrcode library for camera barcode scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #090d16;
+            color: #f8fafc;
+            touch-action: manipulation;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .glass-panel-gold {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            color: #090d16;
+            font-weight: 800;
+            transition: all 0.2s ease;
+        }
+
+        .btn-gold:active {
+            transform: scale(0.98);
+        }
+
+        /* Smooth page transitions */
+        .page-view {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s ease-in-out;
+        }
+
+        .page-view.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .glass-panel, .glass-panel-gold {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-gold-500 selection:text-navy-950">
+
+    <!-- TOP HEADER -->
+    <header class="sticky top-0 z-40 bg-navy-950/90 backdrop-blur-md border-b border-gold-500/30 px-4 py-3 shadow-lg no-print">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-navy-950 font-black text-xl shadow-gold-glow">
+                    <i class="fa-solid fa-ship"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg text-white font-mono tracking-tight leading-none">COIL<span class="text-gold-400">TRACKER</span></h1>
+                    <span class="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">Maritime Cargo Log</span>
+                </div>
+            </div>
+
+            <!-- Quick Stats Header Badge -->
+            <div class="hidden sm:flex items-center gap-4 bg-navy-900 border border-navy-700 px-3 py-1.5 rounded-xl text-xs font-mono">
+                <div>Total: <span id="hdr-stat-total" class="font-bold text-gold-400">0</span></div>
+                <div class="h-3 w-[1px] bg-navy-700"></div>
+                <div>Damaged: <span id="hdr-stat-damaged" class="font-bold text-rose-400">0</span></div>
+            </div>
+
+            <!-- Hamburger Button -->
+            <button onclick="toggleMenu()" class="w-11 h-11 bg-navy-800 border border-gold-500/30 rounded-xl flex items-center justify-center text-gold-400 hover:text-white hover:bg-navy-700 transition active:scale-95" title="Open Navigation Menu">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- SLIDE-OUT HAMBURGER MENU DRAWER -->
+    <div id="drawer-overlay" onclick="toggleMenu()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-opacity duration-300 no-print"></div>
+    <aside id="drawer" class="fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-navy-900 border-l border-gold-500/30 z-50 transform translate-x-full transition-transform duration-300 ease-in-out p-5 flex flex-col justify-between shadow-2xl no-print">
+        <div class="space-y-6">
+            <div class="flex items-center justify-between border-b border-navy-700 pb-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-compass text-gold-400 text-lg"></i>
+                    <h2 class="font-bold text-white font-mono">APP NAVIGATION</h2>
+                </div>
+                <button onclick="toggleMenu()" class="text-gray-400 hover:text-white text-xl p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <nav class="space-y-2">
+                <button onclick="switchPage('page-scan')" id="nav-btn-scan" class="w-full flex items-center space-x-3.5 p-3.5 rounded-xl font-semibold text-sm transition text-left bg-gold-500/20 text-gold-400 border border-gold-500/40 shadow-sm">
+                    <div class="w-8 h-8 rounded-lg bg-gold-500/20 flex items-center justify-center">
+                        <i class="fa-solid fa-barcode"></i>
+                    </div>
+                    <span>1. Scan & Damage Entry</span>
+                </button>
+
+                <button onclick="switchPage('page-lookup')" id="nav-btn-lookup" class="w-full flex items-center space-x-3.5 p-3.5 rounded-xl font-semibold text-sm transition text-left text-gray-300 hover:bg-navy-800">
+                    <div class="w-8 h-8 rounded-lg bg-navy-800 flex items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <span>2. Lookup & Edit Coil</span>
+                </button>
+
+                <button onclick="switchPage('page-summary')" id="nav-btn-summary" class="w-full flex items-center space-x-3.5 p-3.5 rounded-xl font-semibold text-sm transition text-left text-gray-300 hover:bg-navy-800">
+                    <div class="w-8 h-8 rounded-lg bg-navy-800 flex items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-table-list"></i>
+                    </div>
+                    <span>3. Cargo Summary & Share</span>
+                </button>
+            </nav>
+        </div>
+
+        <div class="space-y-3 pt-4 border-t border-navy-800">
+            <button onclick="confirmClearAll()" class="w-full py-2.5 px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-trash-can"></i> Clear Voyage Data
+            </button>
+            <p class="text-[10px] text-center text-gray-500">CoilTracker Pro v2.4 — Offline Ready</p>
+        </div>
+    </aside>
+
+    <!-- MAIN APP BODY CONTAINER -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-5 space-y-5">
+
+        <!-- PAGE 1: SCAN & ENTRY -->
+        <section id="page-scan" class="page-view active space-y-5">
+            
+            <div class="glass-panel-gold rounded-2xl p-5 sm:p-6 space-y-5">
+                <div class="flex items-center justify-between border-b border-navy-700/80 pb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <i class="fa-solid fa-barcode text-gold-400 text-xl"></i>
+                        <h2 class="font-extrabold text-base text-white tracking-wide uppercase font-mono">Scan & Damage Entry</h2>
+                    </div>
+                    <span class="text-xs bg-gold-500/20 text-gold-400 border border-gold-500/30 px-2.5 py-0.5 rounded-full font-semibold">Step 1</span>
+                </div>
+
+                <!-- Rescan Warning Alert Banner -->
+                <div id="duplicate-warning" class="hidden p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/60 text-amber-300 flex items-start gap-3 animate-pulse">
+                    <i class="fa-solid fa-triangle-exclamation text-xl text-amber-400 mt-0.5"></i>
+                    <div class="text-xs">
+                        <strong class="uppercase tracking-wider font-bold block text-white">Coil Already Loaded!</strong>
+                        Updating existing record <span id="dup-barcode-lbl" class="font-mono font-bold text-gold-300 underline"></span>. Total cargo count will <u>NOT</u> increase.
+                    </div>
+                </div>
+
+                <!-- Camera Barcode Scanner Area -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gold-400">Coil Barcode ID</label>
+                    <div class="flex gap-2">
+                        <div class="relative flex-grow">
+                            <input type="text" id="scan-barcode-input" placeholder="Scan or type barcode (e.g. ST-8809)" 
+                                class="w-full bg-navy-950 border-2 border-navy-700 focus:border-gold-400 text-white font-mono text-lg rounded-xl py-3 pl-11 pr-4 outline-none uppercase transition"
+                                oninput="checkBarcodeExistence(this.value)"
+                                onkeydown="if(event.key==='Enter'){ event.preventDefault(); saveCurrentCoil(); }">
+                            <i class="fa-solid fa-barcode absolute left-3.5 top-4 text-gold-400 text-base"></i>
+                        </div>
+                        <button onclick="toggleCameraScanner('scan-camera-wrapper', 'scan-barcode-input')" type="button" class="btn-gold px-4 rounded-xl flex items-center justify-center font-bold text-base shadow">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    </div>
+
+                    <!-- Camera Container -->
+                    <div id="scan-camera-wrapper" class="hidden relative rounded-xl overflow-hidden border-2 border-gold-400 bg-black min-h-[200px]">
+                        <div id="scan-interactive" class="w-full h-full"></div>
+                        <button onclick="toggleCameraScanner('scan-camera-wrapper')" class="absolute top-2 right-2 bg-rose-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow z-20">
+                            <i class="fa-solid fa-xmark"></i> Close Camera
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stowage Location & Weight Inputs -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Stowage Location</label>
+                        <select id="scan-hold-input" class="w-full bg-navy-950 border border-navy-700 focus:border-gold-400 text-xs text-white rounded-xl p-3 outline-none">
+                            <option value="Hold 1">Hold 1</option>
+                            <option value="Hold 2">Hold 2</option>
+                            <option value="Hold 3">Hold 3</option>
+                            <option value="Hold 4">Hold 4</option>
+                            <option value="Hold 5">Hold 5</option>
+                            <option value="Deck">Deck / Hatch</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Gross Weight (MT)</label>
+                        <input type="number" step="0.1" id="scan-weight-input" placeholder="e.g. 24.5" class="w-full bg-navy-950 border border-navy-700 focus:border-gold-400 text-xs text-white font-mono rounded-xl p-3 outline-none">
+                    </div>
+                </div>
+
+                <!-- Damage Selection Tag Options -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gold-400 mb-2">Select Condition & Damages</label>
+                    <div id="scan-damage-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Photo Evidence Input -->
+                <div class="bg-navy-950 p-3.5 rounded-xl border border-navy-700 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <button onclick="document.getElementById('scan-photo-file').click()" type="button" class="px-3.5 py-2 rounded-lg bg-navy-800 border border-gold-500/40 text-gold-400 hover:text-white text-xs font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-camera-retro"></i> Attach Photo
+                        </button>
+                        <input type="file" id="scan-photo-file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(event, 'scan')">
+                        <span id="scan-photo-status" class="text-xs text-gray-400 italic">No image attached</span>
+                    </div>
+                    <div id="scan-photo-preview-wrap" class="hidden relative">
+                        <img id="scan-photo-preview" src="" class="w-12 h-12 object-cover rounded-lg border border-gold-400 shadow">
+                        <button onclick="clearPhoto('scan')" class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-5 h-5 text-xs font-bold">×</button>
+                    </div>
+                </div>
+
+                <!-- Remarks / SOF Clause -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Specific Remarks / Clause</label>
+                    <input type="text" id="scan-notes-input" placeholder="e.g. Outer wrap torn 15cm, light rust on top rim" class="w-full bg-navy-950 border border-navy-700 focus:border-gold-400 text-xs text-white rounded-xl p-3 outline-none">
+                </div>
+
+                <!-- SAVE BUTTON -->
+                <button onclick="saveCurrentCoil()" id="btn-save-main" class="btn-gold w-full py-4 rounded-xl text-navy-950 font-black text-base flex items-center justify-center gap-2 tracking-wider uppercase shadow-gold-glow">
+                    <i class="fa-solid fa-floppy-disk text-lg"></i>
+                    <span id="save-main-text">SAVE COIL RECORD</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- PAGE 2: LOOKUP & EDIT -->
+        <section id="page-lookup" class="page-view space-y-5">
+            <div class="glass-panel-gold rounded-2xl p-5 sm:p-6 space-y-5">
+                <div class="flex items-center justify-between border-b border-navy-700/80 pb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <i class="fa-solid fa-magnifying-glass text-gold-400 text-xl"></i>
+                        <h2 class="font-extrabold text-base text-white tracking-wide uppercase font-mono">Lookup & Edit Loaded Coil</h2>
+                    </div>
+                    <span class="text-xs bg-gold-500/20 text-gold-400 border border-gold-500/30 px-2.5 py-0.5 rounded-full font-semibold">Step 2</span>
+                </div>
+
+                <p class="text-xs text-gray-400">Scan or type a barcode to quickly retrieve, verify, or add damages to a coil already loaded on board.</p>
+
+                <!-- Lookup Scanner Barcode Input -->
+                <div class="space-y-3">
+                    <div class="flex gap-2">
+                        <div class="relative flex-grow">
+                            <input type="text" id="lookup-barcode-input" placeholder="Scan or search Coil Barcode..." 
+                                class="w-full bg-navy-950 border-2 border-navy-700 focus:border-gold-400 text-white font-mono text-lg rounded-xl py-3 pl-11 pr-4 outline-none uppercase"
+                                oninput="performLookup(this.value)">
+                            <i class="fa-solid fa-search absolute left-3.5 top-4 text-gold-400 text-base"></i>
+                        </div>
+                        <button onclick="toggleCameraScanner('lookup-camera-wrapper', 'lookup-barcode-input')" type="button" class="btn-gold px-4 rounded-xl flex items-center justify-center font-bold text-base shadow">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    </div>
+
+                    <div id="lookup-camera-wrapper" class="hidden relative rounded-xl overflow-hidden border-2 border-gold-400 bg-black min-h-[200px]">
+                        <div id="lookup-interactive" class="w-full h-full"></div>
+                        <button onclick="toggleCameraScanner('lookup-camera-wrapper')" class="absolute top-2 right-2 bg-rose-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow z-20">
+                            <i class="fa-solid fa-xmark"></i> Close Camera
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lookup Result / Edit Form Area -->
+                <div id="lookup-result-card" class="hidden space-y-4 pt-3 border-t border-navy-700">
+                    <div class="flex items-center justify-between bg-navy-950 p-3 rounded-xl border border-navy-700">
+                        <div>
+                            <span class="text-[10px] text-gray-400 uppercase font-mono block">Loaded Coil Found</span>
+                            <h3 id="lookup-res-barcode" class="text-xl font-black text-gold-400 font-mono"></h3>
+                            <span id="lookup-res-time" class="text-[10px] text-gray-400"></span>
+                        </div>
+                        <span id="lookup-res-badge" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                    </div>
+
+                    <!-- Edit Stowage Location -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Stowage Location</label>
+                            <select id="lookup-hold-input" class="w-full bg-navy-950 border border-navy-700 text-xs text-white rounded-xl p-3 outline-none">
+                                <option value="Hold 1">Hold 1</option>
+                                <option value="Hold 2">Hold 2</option>
+                                <option value="Hold 3">Hold 3</option>
+                                <option value="Hold 4">Hold 4</option>
+                                <option value="Hold 5">Hold 5</option>
+                                <option value="Deck">Deck / Hatch</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Weight (MT)</label>
+                            <input type="number" step="0.1" id="lookup-weight-input" class="w-full bg-navy-950 border border-navy-700 text-xs text-white font-mono rounded-xl p-3 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Edit Damage Tag Options -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gold-400 mb-2">Modify / Add Damage Tags</label>
+                        <div id="lookup-damage-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Edit Photo Input -->
+                    <div class="bg-navy-950 p-3.5 rounded-xl border border-navy-700 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <button onclick="document.getElementById('lookup-photo-file').click()" type="button" class="px-3.5 py-2 rounded-lg bg-navy-800 border border-gold-500/40 text-gold-400 hover:text-white text-xs font-bold flex items-center gap-2">
+                                <i class="fa-solid fa-camera-retro"></i> Update Photo
+                            </button>
+                            <input type="file" id="lookup-photo-file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(event, 'lookup')">
+                            <span id="lookup-photo-status" class="text-xs text-gray-400 italic">No image attached</span>
+                        </div>
+                        <div id="lookup-photo-preview-wrap" class="hidden relative">
+                            <img id="lookup-photo-preview" src="" class="w-12 h-12 object-cover rounded-lg border border-gold-400 shadow">
+                            <button onclick="clearPhoto('lookup')" class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-5 h-5 text-xs font-bold">×</button>
+                        </div>
+                    </div>
+
+                    <!-- Remarks Input -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Remarks / Statement of Facts Clause</label>
+                        <input type="text" id="lookup-notes-input" class="w-full bg-navy-950 border border-navy-700 text-xs text-white rounded-xl p-3 outline-none">
+                    </div>
+
+                    <button onclick="saveLookupUpdate()" class="btn-gold w-full py-3.5 rounded-xl text-navy-950 font-black text-sm flex items-center justify-center gap-2 uppercase">
+                        <i class="fa-solid fa-floppy-disk"></i> Update Existing Record (No Count Increase)
+                    </button>
+                </div>
+
+                <div id="lookup-empty-msg" class="text-center py-8 text-gray-500 text-xs italic">
+                    Type or scan a barcode above to load coil details.
+                </div>
+            </div>
+        </section>
+
+        <!-- PAGE 3: SUMMARY & SHARE -->
+        <section id="page-summary" class="page-view space-y-5">
+            
+            <!-- Metrics Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="glass-panel-gold p-4 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Coils</span>
+                        <h3 id="summary-total" class="text-3xl font-black text-white font-mono">0</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-gold-500/20 text-gold-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-cubes"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border-emerald-500/30">
+                    <div>
+                        <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Clean Sound</span>
+                        <h3 id="summary-clean" class="text-3xl font-black text-emerald-400 font-mono">0</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border-rose-500/30">
+                    <div>
+                        <span class="text-[10px] text-rose-400 font-bold uppercase tracking-wider">Damaged Coils</span>
+                        <h3 id="summary-damaged" class="text-3xl font-black text-rose-400 font-mono">0</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Toolbar (Share & Export) -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-wrap gap-2 justify-between items-center no-print">
+                <div class="text-xs text-gray-300 font-semibold">
+                    <i class="fa-solid fa-share-nodes text-gold-400 mr-1"></i> Reporting Toolbar
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="shareWhatsApp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 shadow">
+                        <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp Share
+                    </button>
+                    <button onclick="exportCSV()" class="btn-gold-outline bg-navy-800 border border-gold-500/40 text-gold-400 hover:text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv"></i> Excel (CSV)
+                    </button>
+                    <button onclick="window.print()" class="btn-gold-outline bg-navy-800 border border-gold-500/40 text-gold-400 hover:text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Print / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Manifest Data Table -->
+            <div class="glass-panel rounded-2xl p-4 sm:p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+                    <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                        <i class="fa-solid fa-table text-gold-400"></i> CARGO TALLY MANIFEST
+                    </h3>
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="manifest-search" placeholder="Filter ID/Hold..." oninput="renderManifestTable()" class="bg-navy-950 border border-navy-700 text-xs text-white rounded-xl px-3 py-1.5 outline-none w-36 sm:w-48">
+                        <select id="manifest-filter-status" onchange="renderManifestTable()" class="bg-navy-950 border border-navy-700 text-xs text-white rounded-xl px-2.5 py-1.5 outline-none">
+                            <option value="ALL">All Coils</option>
+                            <option value="DAMAGED">Damaged Only</option>
+                            <option value="SOUND">Clean Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-navy-700">
+                    <table class="w-full text-left text-xs text-gray-300">
+                        <thead class="bg-navy-950 text-gold-400 uppercase font-bold text-[10px] border-b border-navy-700">
+                            <tr>
+                                <th class="p-3">Barcode</th>
+                                <th class="p-3">Hold</th>
+                                <th class="p-3">Weight</th>
+                                <th class="p-3">Condition & Damages</th>
+                                <th class="p-3">Photo</th>
+                                <th class="p-3 text-right no-print">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manifest-table-body" class="divide-y divide-navy-800">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="manifest-empty" class="hidden text-center py-8 text-gray-500 text-xs">
+                    No cargo entries found.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-gold-400 text-navy-950 font-black px-4 py-3 rounded-xl shadow-2xl transition-all transform translate-y-24 opacity-0 z-50 flex items-center gap-2.5 text-xs">
+        <i class="fa-solid fa-circle-check text-base"></i>
+        <span id="toast-msg">Notification</span>
+    </div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // MASTER DAMAGE TAG PRESETS
+        const DAMAGE_PRESETS = [
+            { id: 'CLEAN', label: 'Clean / Sound', icon: 'fa-shield-halved', sound: true },
+            { id: 'EDGE', label: 'Edge Damage', icon: 'fa-triangle-exclamation', sound: false },
+            { id: 'WRAPPER', label: 'Torn Wrapper', icon: 'fa-box-archive', sound: false },
+            { id: 'DENT', label: 'Dent / Gouge', icon: 'fa-car-burst', sound: false },
+            { id: 'RUST', label: 'Surface Rust', icon: 'fa-droplet', sound: false },
+            { id: 'HOLE', label: 'Hole / Puncture', icon: 'fa-circle-dot', sound: false },
+            { id: 'WET', label: 'Wet / Moisture', icon: 'fa-water', sound: false },
+            { id: 'LOOSE', label: 'Strapping Loose', icon: 'fa-link-slash', sound: false }
+        ];
+
+        // GLOBAL APP STATE
+        let cargoList = JSON.parse(localStorage.getItem('coil_tracker_cargo') || '[]');
+        let scanSelectedDamages = new Set(['CLEAN']);
+        let lookupSelectedDamages = new Set(['CLEAN']);
+        let scanPhotoBase64 = null;
+        let lookupPhotoBase64 = null;
+        let activeScannerInstance = null;
+        let currentLookupIndex = -1;
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDamageGrid('scan');
+            renderDamageGrid('lookup');
+            updateStats();
+            renderManifestTable();
+        });
+
+        // PERSISTENCE
+        function saveData() {
+            localStorage.setItem('coil_tracker_cargo', JSON.stringify(cargoList));
+            updateStats();
+            renderManifestTable();
+        }
+
+        // HAMBURGER DRAWER TOGGLE
+        function toggleMenu() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            const isOpen = !drawer.classList.contains('translate-x-full');
+
+            if (isOpen) {
+                drawer.classList.add('translate-x-full');
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                drawer.classList.remove('translate-x-full');
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        // PAGE NAVIGATION SWITCHER
+        function switchPage(pageId) {
+            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+
+            // Update drawer button highlighting
+            const btnMap = {
+                'page-scan': 'nav-btn-scan',
+                'page-lookup': 'nav-btn-lookup',
+                'page-summary': 'nav-btn-summary'
+            };
+
+            ['nav-btn-scan', 'nav-btn-lookup', 'nav-btn-summary'].forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                if (btnId === btnMap[pageId]) {
+                    btn.className = "w-full flex items-center space-x-3.5 p-3.5 rounded-xl font-semibold text-sm transition text-left bg-gold-500/20 text-gold-400 border border-gold-500/40 shadow-sm";
+                } else {
+                    btn.className = "w-full flex items-center space-x-3.5 p-3.5 rounded-xl font-semibold text-sm transition text-left text-gray-300 hover:bg-navy-800";
+                }
+            });
+
+            toggleMenu();
+        }
+
+        // RENDER DAMAGE TAG GRID
+        function renderDamageGrid(mode) {
+            const grid = document.getElementById(`${mode}-damage-grid`);
+            const selectedSet = mode === 'scan' ? scanSelectedDamages : lookupSelectedDamages;
+            grid.innerHTML = '';
+
+            DAMAGE_PRESETS.forEach(tag => {
+                const isSelected = selectedSet.has(tag.id);
+                const isCleanTag = tag.id === 'CLEAN';
+
+                let style = isSelected 
+                    ? (isCleanTag ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 font-bold' : 'bg-gold-500/20 border-gold-400 text-gold-300 font-bold shadow-gold-glow')
+                    : 'bg-navy-950 border-navy-700 text-gray-400 hover:border-gray-500';
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-2.5 rounded-xl border text-left transition-all text-xs flex flex-col justify-between h-14 ${style}`;
+                btn.onclick = () => toggleTag(mode, tag.id);
+                btn.innerHTML = `
+                    <div class="flex justify-between items-center w-full">
+                        <i class="fa-solid ${tag.icon} text-sm"></i>
+                        <span class="w-2 h-2 rounded-full ${isSelected ? (isCleanTag ? 'bg-emerald-400' : 'bg-gold-400') : 'bg-transparent'}"></span>
+                    </div>
+                    <span class="text-[11px] leading-tight font-medium">${tag.label}</span>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function toggleTag(mode, tagId) {
+            const selectedSet = mode === 'scan' ? scanSelectedDamages : lookupSelectedDamages;
+            if (tagId === 'CLEAN') {
+                selectedSet.clear();
+                selectedSet.add('CLEAN');
+            } else {
+                selectedSet.delete('CLEAN');
+                if (selectedSet.has(tagId)) {
+                    selectedSet.delete(tagId);
+                    if (selectedSet.size === 0) selectedSet.add('CLEAN');
+                } else {
+                    selectedSet.add(tagId);
+                }
+            }
+            renderDamageGrid(mode);
+        }
+
+        // SMART DUPLICATE CHECKER ON INPUT
+        function checkBarcodeExistence(val) {
+            const code = val.trim().toUpperCase();
+            const warning = document.getElementById('duplicate-warning');
+            const saveBtnText = document.getElementById('save-main-text');
+
+            if (!code) {
+                warning.classList.add('hidden');
+                saveBtnText.innerText = 'SAVE COIL RECORD';
+                return;
+            }
+
+            const existing = cargoList.find(c => c.barcode === code);
+            if (existing) {
+                warning.classList.remove('hidden');
+                document.getElementById('dup-barcode-lbl').innerText = code;
+                saveBtnText.innerText = 'UPDATE EXISTING COIL (NO COUNT INCREASE)';
+
+                // Autofill existing info
+                document.getElementById('scan-hold-input').value = existing.hold;
+                document.getElementById('scan-weight-input').value = existing.weight || '';
+                document.getElementById('scan-notes-input').value = existing.notes || '';
+                scanSelectedDamages = new Set(existing.damages);
+                renderDamageGrid('scan');
+                if (existing.photo) {
+                    scanPhotoBase64 = existing.photo;
+                    document.getElementById('scan-photo-preview').src = existing.photo;
+                    document.getElementById('scan-photo-preview-wrap').classList.remove('hidden');
+                    document.getElementById('scan-photo-status').innerText = 'Existing photo loaded';
+                }
+            } else {
+                warning.classList.add('hidden');
+                saveBtnText.innerText = 'SAVE COIL RECORD';
+            }
+        }
+
+        // SAVE COIL ENTRY (PAGE 1)
+        function saveCurrentCoil() {
+            const input = document.getElementById('scan-barcode-input');
+            const barcode = input.value.trim().toUpperCase();
+
+            if (!barcode) {
+                showToast('Please scan or enter a Barcode ID!', true);
+                input.focus();
+                return;
+            }
+
+            const hold = document.getElementById('scan-hold-input').value;
+            const weight = document.getElementById('scan-weight-input').value.trim();
+            const notes = document.getElementById('scan-notes-input').value.trim();
+            const damages = Array.from(scanSelectedDamages);
+            const isClean = damages.includes('CLEAN');
+            const timestamp = new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium' });
+
+            const existingIdx = cargoList.findIndex(c => c.barcode === barcode);
+
+            if (existingIdx !== -1) {
+                // UPDATE EXISTING RECORD (SAFE NON-DUPLICATE)
+                cargoList[existingIdx].hold = hold;
+                cargoList[existingIdx].weight = weight || cargoList[existingIdx].weight;
+                cargoList[existingIdx].damages = damages;
+                cargoList[existingIdx].isClean = isClean;
+                cargoList[existingIdx].notes = notes;
+                if (scanPhotoBase64) cargoList[existingIdx].photo = scanPhotoBase64;
+                cargoList[existingIdx].lastUpdated = timestamp;
+                showToast(`Updated Coil ${barcode} (Total count unchanged)`);
+            } else {
+                // ADD NEW RECORD
+                cargoList.unshift({
+                    id: Date.now(),
+                    barcode: barcode,
+                    hold: hold,
+                    weight: weight || '-',
+                    damages: damages,
+                    isClean: isClean,
+                    notes: notes,
+                    photo: scanPhotoBase64,
+                    timestamp: timestamp
+                });
+                showToast(`Coil ${barcode} logged successfully!`);
+            }
+
+            saveData();
+            resetScanForm();
+        }
+
+        function resetScanForm() {
+            document.getElementById('scan-barcode-input').value = '';
+            document.getElementById('scan-weight-input').value = '';
+            document.getElementById('scan-notes-input').value = '';
+            document.getElementById('duplicate-warning').classList.add('hidden');
+            document.getElementById('save-main-text').innerText = 'SAVE COIL RECORD';
+            scanSelectedDamages = new Set(['CLEAN']);
+            renderDamageGrid('scan');
+            clearPhoto('scan');
+            document.getElementById('scan-barcode-input').focus();
+        }
+
+        // LOOKUP ENGINE (PAGE 2)
+        function performLookup(val) {
+            const code = val.trim().toUpperCase();
+            const resultCard = document.getElementById('lookup-result-card');
+            const emptyMsg = document.getElementById('lookup-empty-msg');
+
+            if (!code) {
+                resultCard.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+                currentLookupIndex = -1;
+                return;
+            }
+
+            const idx = cargoList.findIndex(c => c.barcode === code);
+            if (idx !== -1) {
+                currentLookupIndex = idx;
+                const coil = cargoList[idx];
+
+                resultCard.classList.remove('hidden');
+                emptyMsg.classList.add('hidden');
+
+                document.getElementById('lookup-res-barcode').innerText = coil.barcode;
+                document.getElementById('lookup-res-time').innerText = `Logged: ${coil.timestamp}`;
+                
+                const badge = document.getElementById('lookup-res-badge');
+                badge.innerText = coil.isClean ? 'SOUND' : 'DAMAGED';
+                badge.className = coil.isClean 
+                    ? 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
+                    : 'px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40';
+
+                document.getElementById('lookup-hold-input').value = coil.hold;
+                document.getElementById('lookup-weight-input').value = coil.weight !== '-' ? coil.weight : '';
+                document.getElementById('lookup-notes-input').value = coil.notes || '';
+
+                lookupSelectedDamages = new Set(coil.damages);
+                renderDamageGrid('lookup');
+
+                if (coil.photo) {
+                    lookupPhotoBase64 = coil.photo;
+                    document.getElementById('lookup-photo-preview').src = coil.photo;
+                    document.getElementById('lookup-photo-preview-wrap').classList.remove('hidden');
+                    document.getElementById('lookup-photo-status').innerText = 'Existing photo loaded';
+                } else {
+                    clearPhoto('lookup');
+                }
+            } else {
+                resultCard.classList.add('hidden');
+                emptyMsg.innerText = `No coil found with barcode "${code}"`;
+                emptyMsg.classList.remove('hidden');
+                currentLookupIndex = -1;
+            }
+        }
+
+        function saveLookupUpdate() {
+            if (currentLookupIndex === -1) return;
+
+            const coil = cargoList[currentLookupIndex];
+            coil.hold = document.getElementById('lookup-hold-input').value;
+            coil.weight = document.getElementById('lookup-weight-input').value.trim() || '-';
+            coil.notes = document.getElementById('lookup-notes-input').value.trim();
+            coil.damages = Array.from(lookupSelectedDamages);
+            coil.isClean = coil.damages.includes('CLEAN');
+            if (lookupPhotoBase64) coil.photo = lookupPhotoBase64;
+            coil.lastUpdated = new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium' });
+
+            saveData();
+            showToast(`Updated record for ${coil.barcode}`);
+            performLookup(coil.barcode);
+        }
+
+        // PHOTO FILE HANDLING
+        function handlePhotoUpload(e, mode) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const b64 = evt.target.result;
+                if (mode === 'scan') {
+                    scanPhotoBase64 = b64;
+                    document.getElementById('scan-photo-preview').src = b64;
+                    document.getElementById('scan-photo-preview-wrap').classList.remove('hidden');
+                    document.getElementById('scan-photo-status').innerText = 'Photo captured';
+                } else {
+                    lookupPhotoBase64 = b64;
+                    document.getElementById('lookup-photo-preview').src = b64;
+                    document.getElementById('lookup-photo-preview-wrap').classList.remove('hidden');
+                    document.getElementById('lookup-photo-status').innerText = 'Photo updated';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearPhoto(mode) {
+            if (mode === 'scan') {
+                scanPhotoBase64 = null;
+                document.getElementById('scan-photo-file').value = '';
+                document.getElementById('scan-photo-preview-wrap').classList.add('hidden');
+                document.getElementById('scan-photo-status').innerText = 'No image attached';
+            } else {
+                lookupPhotoBase64 = null;
+                document.getElementById('lookup-photo-file').value = '';
+                document.getElementById('lookup-photo-preview-wrap').classList.add('hidden');
+                document.getElementById('lookup-photo-status').innerText = 'No image attached';
+            }
+        }
+
+        // CAMERA SCANNER WRAPPER
+        function toggleCameraScanner(wrapperId, targetInputId) {
+            const wrapper = document.getElementById(wrapperId);
+
+            if (activeScannerInstance) {
+                activeScannerInstance.stop().then(() => {
+                    wrapper.classList.add('hidden');
+                    activeScannerInstance = null;
+                }).catch(err => console.error(err));
+            } else {
+                wrapper.classList.remove('hidden');
+                const scannerId = wrapperId === 'scan-camera-wrapper' ? 'scan-interactive' : 'lookup-interactive';
+                activeScannerInstance = new Html5Qrcode(scannerId);
+                
+                activeScannerInstance.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    (decodedText) => {
+                        const input = document.getElementById(targetInputId);
+                        input.value = decodedText;
+                        if (targetInputId === 'scan-barcode-input') checkBarcodeExistence(decodedText);
+                        if (targetInputId === 'lookup-barcode-input') performLookup(decodedText);
+                        toggleCameraScanner(wrapperId, targetInputId);
+                        showToast(`Scanned: ${decodedText}`);
+                    },
+                    () => {}
+                ).catch(() => {
+                    showToast('Camera access failed', true);
+                    wrapper.classList.add('hidden');
+                    activeScannerInstance = null;
+                });
+            }
+        }
+
+        // MANIFEST TABLE & METRICS (PAGE 3)
+        function updateStats() {
+            const total = cargoList.length;
+            const clean = cargoList.filter(c => c.isClean).length;
+            const damaged = total - clean;
+
+            document.getElementById('hdr-stat-total').innerText = total;
+            document.getElementById('hdr-stat-damaged').innerText = damaged;
+
+            document.getElementById('summary-total').innerText = total;
+            document.getElementById('summary-clean').innerText = clean;
+            document.getElementById('summary-damaged').innerText = damaged;
+        }
+
+        function renderManifestTable() {
+            const tbody = document.getElementById('manifest-table-body');
+            const searchVal = document.getElementById('manifest-search').value.toLowerCase();
+            const filterStatus = document.getElementById('manifest-filter-status').value;
+            const emptyMsg = document.getElementById('manifest-empty');
+
+            tbody.innerHTML = '';
+
+            const filtered = cargoList.filter(c => {
+                const matchSearch = c.barcode.toLowerCase().includes(searchVal) || c.hold.toLowerCase().includes(searchVal);
+                let matchStatus = true;
+                if (filterStatus === 'DAMAGED') matchStatus = !c.isClean;
+                if (filterStatus === 'SOUND') matchStatus = c.isClean;
+                return matchSearch && matchStatus;
+            });
+
+            if (filtered.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+
+            filtered.forEach(coil => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-navy-900/50 transition border-b border-navy-800';
+
+                const damageLabels = coil.damages.map(dId => {
+                    const preset = DAMAGE_PRESETS.find(p => p.id === dId);
+                    const isClean = dId === 'CLEAN';
+                    const badgeClass = isClean ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+                    return `<span class="inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass} mr-1 mb-1">${preset ? preset.label : dId}</span>`;
+                }).join('');
+
+                const photoEl = coil.photo 
+                    ? `<img src="${coil.photo}" class="w-8 h-8 rounded object-cover border border-gold-400">` 
+                    : `<span class="text-[10px] text-gray-500 italic">No image</span>`;
+
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-gold-400">
+                        ${coil.barcode}
+                        ${coil.lastUpdated ? '<span class="block text-[9px] text-amber-400">Updated</span>' : ''}
+                    </td>
+                    <td class="p-3 font-medium">${coil.hold}</td>
+                    <td class="p-3 font-mono">${coil.weight} MT</td>
+                    <td class="p-3">
+                        ${damageLabels}
+                        ${coil.notes ? `<p class="text-[10px] text-gray-400 italic mt-0.5">${coil.notes}</p>` : ''}
+                    </td>
+                    <td class="p-3">${photoEl}</td>
+                    <td class="p-3 text-right space-x-1 no-print">
+                        <button onclick="editCoilFromSummary(${coil.id})" class="p-1.5 text-gold-400 hover:bg-navy-800 rounded">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteCoil(${coil.id})" class="p-1.5 text-rose-400 hover:bg-navy-800 rounded">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editCoilFromSummary(id) {
+            const coil = cargoList.find(c => c.id === id);
+            if (!coil) return;
+            switchPage('page-lookup');
+            document.getElementById('lookup-barcode-input').value = coil.barcode;
+            performLookup(coil.barcode);
+        }
+
+        function deleteCoil(id) {
+            if (confirm("Delete this coil record?")) {
+                cargoList = cargoList.filter(c => c.id !== id);
+                saveData();
+                showToast("Coil deleted");
+            }
+        }
+
+        function confirmClearAll() {
+            if (confirm("WARNING: Are you sure you want to clear all voyage coil logs? This cannot be undone.")) {
+                cargoList = [];
+                saveData();
+                showToast("All data cleared");
+            }
+        }
+
+        // EXPORT TO CSV
+        function exportCSV() {
+            if (cargoList.length === 0) {
+                showToast("No records to export!", true);
+                return;
+            }
+
+            let csv = "data:text/csv;charset=utf-8,";
+            csv += "Barcode,Hold,Weight(MT),Condition,Defects Tagged,Remarks,Timestamp\n";
+
+            cargoList.forEach(item => {
+                const condition = item.isClean ? "SOUND" : "DAMAGED";
+                const defects = item.damages.join("; ");
+                const notes = (item.notes || "").replace(/"/g, '""');
+                csv += `"${item.barcode}","${item.hold}","${item.weight}","${condition}","${defects}","${notes}","${item.timestamp}"\n`;
+            });
+
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csv));
+            link.setAttribute("download", `Cargo_Coil_Tally_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // SHARE VIA WHATSAPP
+        function shareWhatsApp() {
+            if (cargoList.length === 0) {
+                showToast("No cargo data to share!", true);
+                return;
+            }
+
+            const total = cargoList.length;
+            const clean = cargoList.filter(c => c.isClean).length;
+            const damaged = total - clean;
+
+            let msg = `*🚢 COILTRACKER CARGO REPORT*\n`;
+            msg += `📅 Date: ${new Date().toLocaleDateString('en-GB')}\n`;
+            msg += `📦 Total Loaded: *${total} coils*\n`;
+            msg += `✅ Clean: ${clean} | ⚠️ Damaged: *${damaged}*\n\n`;
+
+            if (damaged > 0) {
+                msg += `*EXCEPTIONS / DAMAGED COILS SUMMARY:*\n`;
+                cargoList.filter(c => !c.isClean).forEach(c => {
+                    const tags = c.damages.filter(d => d !== 'CLEAN').join(', ');
+                    msg += `- *${c.barcode}* (${c.hold}): ${tags} ${c.notes ? `[${c.notes}]` : ''}\n`;
+                });
+            } else {
+                msg += `All loaded coils passed in sound condition.\n`;
+            }
+
+            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // TOAST HELPER
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+
+            toastMsg.innerText = msg;
+            toast.className = `fixed bottom-5 right-5 font-black px-4 py-3 rounded-xl shadow-2xl transition-all transform z-50 flex items-center gap-2.5 text-xs ${isError ? 'bg-rose-600 text-white' : 'bg-gold-400 text-navy-950'}`;
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
